@@ -23,13 +23,7 @@ that matches your machine:
 - **Run models on GPU** — an NVIDIA GPU, Docker, and the NVIDIA Container Toolkit.
 
 > **Prebuilt binaries and Homebrew ship with the first tagged GitHub release.**
-> Until then, build from source (below) — it takes about a minute.
->
-> ```bash
-> # (available once a release is published)
-> curl -fsSL https://raw.githubusercontent.com/LucciAI/llamadeck/main/install.sh | sh
-> brew install LucciAI/tap/llamadeck
-> ```
+> Until one is published, build from source (below) — it takes about a minute.
 
 ### Prerequisites
 
@@ -80,11 +74,11 @@ go version                              # should print go1.24.x
 ### 3 · Build & install llamadeck
 
 ```bash
-git clone https://github.com/LucciAI/llamadeck.git
+git clone https://github.com/xcanonx12/llamadeck.git
 cd llamadeck
 make install                            # builds predictor/ → installs to ~/.local/bin
 export PATH="$HOME/.local/bin:$PATH"    # add to ~/.bashrc / ~/.zshrc to persist
-llamadeck --help                        # verify
+llamadeck                               # verify — prints usage
 ```
 
 `make install` runs `go build` in `predictor/` and copies the binary to

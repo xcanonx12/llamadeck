@@ -32,13 +32,13 @@ checksum:
 
 release:
   github:
-    owner: LucciAI # TODO: set to your GitHub owner
+    owner: xcanonx12
     name: llamadeck
 
 homebrew_casks:
   - name: llamadeck
     repository:
-      owner: LucciAI # TODO: your homebrew tap repo (homebrew-tap)
+      owner: xcanonx12 # homebrew tap repo (homebrew-tap)
       name: homebrew-tap
     homepage: "https://github.com/xcanonx12/llamadeck"
     description: "Mission control for local LLMs — predict GGUF fit before you download, then launch and monitor."

@@ -1,13 +1,13 @@
 #!/usr/bin/env sh
 # llamadeck installer. Usage:
-#   curl -fsSL https://raw.githubusercontent.com/LucciAI/llamadeck/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/xcanonx12/llamadeck/main/install.sh | sh
 #
 # Downloads the latest prebuilt binary for your OS/arch from GitHub Releases and
 # installs it to ~/.local/bin (or /usr/local/bin if writable). Override the repo
 # with LLAMADECK_REPO=owner/name.
 set -eu
 
-REPO="${LLAMADECK_REPO:-LucciAI/llamadeck}"
+REPO="${LLAMADECK_REPO:-xcanonx12/llamadeck}"
 BINARY="llamadeck"
 
 os=$(uname -s | tr '[:upper:]' '[:lower:]')

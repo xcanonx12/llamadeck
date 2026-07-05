@@ -10,19 +10,14 @@ layer-by-layer allocation against free VRAM/RAM.
 ## Install
 
 ```bash
-# prebuilt binary (Linux/macOS · amd64/arm64)
-curl -fsSL https://raw.githubusercontent.com/LucciAI/llamadeck/main/install.sh | sh
-
-# Homebrew
-brew install LucciAI/tap/llamadeck
-
-# from source
+# from source (Go 1.24+)
 make install                       # → ~/.local/bin/llamadeck
 cd predictor && go install ./cmd/llamadeck
 ```
 
-Release binaries are built by goreleaser. Until the first GitHub release is
-published, install from source with `make install`.
+Prebuilt binaries (`curl … install.sh | sh`) and Homebrew
+(`brew install xcanonx12/tap/llamadeck`) ship with the first tagged GitHub
+release. Until one is published, install from source with `make install`.
 
 Now a full operational TUI: `llamadeck` (no args) opens a tabbed, nvtop-style
 control center — **Models · Fit · Monitor · Config** — built on the same engine.
