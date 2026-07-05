@@ -1,0 +1,23 @@
+# Secrets / local config
+.env
+.env.bak
+
+# Generated at runtime
+.models/
+compose/
+.codemap/
+
+# Upstream source, cloned by docker-build.sh (built into the image, not vendored)
+llama.cpp/
+
+# Go build artifacts
+predictor/llamadeck
+predictor/llamadeck-*
+predictor/lamadeck
+dist/
+demo/demo.cast
+
+# Internal working material — never ship
+.claude/
+docs/
+.superpowers/

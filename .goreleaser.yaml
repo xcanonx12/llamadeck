@@ -1,0 +1,52 @@
+# goreleaser config for llamadeck. The Go module lives in predictor/.
+# Validate:  goreleaser check
+# Snapshot:  goreleaser build --snapshot --clean
+# Release:   git tag vX.Y.Z && GITHUB_TOKEN=... goreleaser release --clean
+#
+# NOTE: set the real GitHub owner below (and create a homebrew-tap repo) before
+# the first release. The project currently mirrors from GitLab.
+version: 2
+
+project_name: llamadeck
+
+builds:
+  - id: llamadeck
+    dir: predictor # run the build from the Go module dir
+    main: ./cmd/llamadeck
+    binary: llamadeck
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+release:
+  github:
+    owner: LucciAI # TODO: set to your GitHub owner
+    name: llamadeck
+
+homebrew_casks:
+  - name: llamadeck
+    repository:
+      owner: LucciAI # TODO: your homebrew tap repo (homebrew-tap)
+      name: homebrew-tap
+    homepage: "https://github.com/xcanonx12/llamadeck"
+    description: "Mission control for local LLMs — predict GGUF fit before you download, then launch and monitor."
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"

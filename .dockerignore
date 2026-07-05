@@ -1,0 +1,6 @@
+# The image build only needs the llama.cpp source tree. Ignore everything else
+# so the build context stays small and no secrets/caches leak into it.
+*
+!llama.cpp
+# ...but never the upstream clone's own git history (huge, unneeded).
+llama.cpp/.git

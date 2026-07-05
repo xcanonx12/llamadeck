@@ -1,0 +1,11 @@
+{
+  "siblings": [
+    {"rfilename": "README.md"},
+    {"rfilename": "Qwen3-VL-8B-Instruct-Q4_K_M.gguf"},
+    {"rfilename": "Qwen3-VL-8B-Instruct-Q5_K_M.gguf"},
+    {"rfilename": "Q8_0/Qwen3-VL-8B-Instruct-Q8_0-00001-of-00002.gguf"},
+    {"rfilename": "Q8_0/Qwen3-VL-8B-Instruct-Q8_0-00002-of-00002.gguf"},
+    {"rfilename": "Qwen3-VL-8B-Instruct-IQ4_XS.gguf"},
+    {"rfilename": "mmproj-F16.gguf"}
+  ]
+}
