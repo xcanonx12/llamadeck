@@ -546,7 +546,10 @@ func readLog(o opts) (string, error) {
 	case o.container != "":
 		out, err := runCombined("docker", "logs", o.container)
 		if err != nil {
-			return "", fmt.Errorf("docker logs %s: %v", o.container, err)
+			// out holds docker's stderr (no such container / socket permission
+			// denied) — dropping it left users with a bare "exit status 1".
+			return "", fmt.Errorf("docker logs %s: %v: %s", o.container, err,
+				strings.TrimSpace(firstLine(out)))
 		}
 		return out, nil
 	case o.logFile == "-":
@@ -642,6 +645,14 @@ func colorMode(mode fit.Mode) string {
 }
 
 // runCombined captures both stdout and stderr (llama-server logs to stderr).
+// firstLine is the useful part of a failed command's output.
+func firstLine(s string) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
+
 func runCombined(name string, args ...string) (string, error) {
 	out, err := exec.Command(name, args...).CombinedOutput()
 	return string(out), err
