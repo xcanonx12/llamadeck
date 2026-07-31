@@ -166,12 +166,15 @@ func (m Model) View() string {
 	header := lipgloss.JoinHorizontal(lipgloss.Top,
 		stTitle.Render("llamadeck"), "  ", tabBar(titles, m.active))
 
+	// One line, and only one: the layout below subtracts exactly one row for it,
+	// so MaxWidth truncates instead of letting a long reason wrap and push the
+	// body off-screen (the Docker fix-up hint is longer than a narrow terminal).
 	banner := ""
 	switch {
 	case !m.sh.dockerOK:
-		banner = stWarn.Render("  ⚠ Docker unusable: " + m.sh.dockerWhy + " — fit prediction still works\n")
+		banner = stWarn.MaxWidth(m.w).Render("  ⚠ Docker: "+m.sh.dockerWhy) + "\n"
 	case !m.sh.imageOK:
-		banner = stWarn.Render("  ⚠ server image not built — go to the Config tab (4) to build it\n")
+		banner = stWarn.MaxWidth(m.w).Render("  ⚠ server image not built — go to the Config tab (4) to build it") + "\n"
 	}
 
 	bodyH := m.h - 4
