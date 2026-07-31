@@ -41,8 +41,9 @@ type shared struct {
 	hw       fit.Hardware
 	gpuFree  []int64 // per-device free VRAM (bytes), for single-GPU pinning
 	cfg      fit.Config
-	dockerOK bool
-	imageOK  bool
+	dockerOK  bool
+	dockerWhy string // why Docker is unusable (or its version when it is)
+	imageOK   bool
 	cpuMode  bool // no-GPU mode: predict against RAM only, launch without --gpus
 	selected *selection // model chosen in Models, used by Fit
 }
@@ -63,13 +64,15 @@ type Model struct {
 
 // New builds the app with probed hardware and calibration applied.
 func New() Model {
-	dockerOK := infra.DockerAvailable()
-	gpuCount, totalVRAM := infra.GPUSummary()
+	dockerOK, dockerWhy := infra.DockerStatus()
+	gpuCount, totalVRAM, unified := infra.GPUSummary()
 	sh := &shared{
-		hw:       fit.Hardware{FreeVRAM: totalVRAM, FreeRAM: infra.FreeRAM(), NumGPUs: gpuCount},
-		cfg:      fit.DefaultConfig(),
-		dockerOK: dockerOK,
-		imageOK:  dockerOK && infra.ServerImageExists(),
+		hw: fit.Hardware{FreeVRAM: totalVRAM, FreeRAM: infra.FreeRAM(),
+			NumGPUs: gpuCount, Unified: unified},
+		cfg:       fit.DefaultConfig(),
+		dockerOK:  dockerOK,
+		dockerWhy: dockerWhy,
+		imageOK:   dockerOK && infra.ServerImageExists(),
 	}
 	sh.cpuMode = gpuCount == 0 // no GPU detected → CPU mode by default
 	if p, err := fit.LoadProfile(); err == nil {
@@ -166,7 +169,7 @@ func (m Model) View() string {
 	banner := ""
 	switch {
 	case !m.sh.dockerOK:
-		banner = stWarn.Render("  ⚠ Docker not found — fit prediction works; launch / monitor / build need Docker\n")
+		banner = stWarn.Render("  ⚠ Docker unusable: " + m.sh.dockerWhy + " — fit prediction still works\n")
 	case !m.sh.imageOK:
 		banner = stWarn.Render("  ⚠ server image not built — go to the Config tab (4) to build it\n")
 	}

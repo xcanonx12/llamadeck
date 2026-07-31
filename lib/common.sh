@@ -72,6 +72,26 @@ load_env() {
   set -a; source .env; set +a
 }
 
+# env_set KEY VALUE: set (or add) KEY=VALUE in ./.env
+env_set() {
+  local k="$1" v="$2"
+  if grep -q "^${k}=" .env 2>/dev/null; then
+    sed -i.bak -E "s|^${k}=.*|${k}=${v}|" .env
+  else
+    printf '%s=%s\n' "$k" "$v" >> .env
+  fi
+  log_info "${k}=${v} in .env"
+}
+
+# is_unified_gpu: true when the GPU shares the host's memory pool (DGX Spark
+# GB10, Jetson). Those parts have no separate VRAM and nvidia-smi reports the
+# memory columns as [N/A]. Keep the name list in sync with infra/docker.go.
+is_unified_gpu() {
+  command -v nvidia-smi >/dev/null 2>&1 || return 1
+  nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null \
+    | grep -qiE 'GB10|Spark|Orin|Xavier|Thor|Tegra'
+}
+
 # parse_cuda_tag: read nvidia-smi output on stdin, echo "<major>.<minor>.0"
 parse_cuda_tag() {
   local ver

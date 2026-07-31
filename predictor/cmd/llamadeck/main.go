@@ -65,8 +65,8 @@ type opts struct {
 // hardware builds the Hardware to predict against: probed GPU count + pooled free
 // VRAM and free RAM, with --vram-mb / --ram-mb / --gpus overrides.
 func (o opts) hardware() fit.Hardware {
-	count, total := infra.GPUSummary()
-	hw := fit.Hardware{FreeVRAM: total, FreeRAM: infra.FreeRAM(), NumGPUs: count}
+	count, total, unified := infra.GPUSummary()
+	hw := fit.Hardware{FreeVRAM: total, FreeRAM: infra.FreeRAM(), NumGPUs: count, Unified: unified}
 	if o.gpus > 0 {
 		// Model a specific GPU count; scale pooled VRAM proportionally (assuming
 		// uniform GPUs) unless an explicit --vram-mb override is given.

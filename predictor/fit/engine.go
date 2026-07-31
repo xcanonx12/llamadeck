@@ -99,6 +99,9 @@ type Hardware struct {
 	// GPUsFree is per-device free VRAM (bytes). Additive: when len>1 the caller
 	// can run PredictDevices for a per-device split; pooled Predict ignores it.
 	GPUsFree []int64
+	// Unified means FreeVRAM and FreeRAM are the SAME physical pool (DGX Spark
+	// GB10, Jetson): VRAM + RAM together must fit in FreeVRAM, not in each.
+	Unified bool
 }
 
 // gpuCount returns the effective GPU count for the prediction.
@@ -384,6 +387,14 @@ func Predict(m *Model, hw Hardware, c Config) (*Result, error) {
 		r.Mode = ModeOOM
 	} else if r.VRAMUsed > 0 && hw.FreeVRAM-r.VRAMUsed < loadMargin(c) {
 		r.Tight = true
+	}
+	// Unified memory: one pool serves both roles, so the two independent checks
+	// above would jointly allow ~2× the machine. Judge the sum instead.
+	// ponytail: the greedy fill still spends the whole pool on VRAM before host
+	// needs are known — harmless because a full offload leaves only the small
+	// embedding copy host-side, and the sum check below catches the rest.
+	if hw.Unified && r.VRAMUsed+hardRAM > hw.FreeVRAM {
+		r.Mode = ModeOOM
 	}
 	// Auto on a spilling HYBRID is tight too: llama's own auto-fit packs GPUs
 	// to its reserve target, which under-covers recurrent models' load-time

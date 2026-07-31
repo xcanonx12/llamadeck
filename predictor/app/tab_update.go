@@ -221,7 +221,7 @@ func (t *updateTab) View(width, height int) string {
 	switch {
 	case !t.sh.dockerOK:
 		b.WriteString(stErr.Render("Docker not available") + "\n")
-		b.WriteString(stMuted.Render("  install and start Docker, then return here to build.") + "\n\n")
+		b.WriteString(stMuted.Render("  "+t.sh.dockerWhy) + "\n\n")
 	case t.sh.imageOK:
 		b.WriteString(stOK.Render("✓ "+infra.ImageTag) + "\n\n")
 	default:

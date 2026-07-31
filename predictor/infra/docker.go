@@ -35,6 +35,7 @@ type GPU struct {
 	MemTotal int64 // bytes
 	MemFree  int64 // bytes
 	UtilPct  int
+	Unified  bool // memory is the host's pool (DGX Spark / Jetson), not separate VRAM
 }
 
 func run(name string, args ...string) (string, error) {
@@ -43,8 +44,41 @@ func run(name string, args ...string) (string, error) {
 }
 
 // DockerAvailable reports whether the docker daemon is reachable.
-func DockerAvailable() bool {
-	return exec.Command("docker", "info").Run() == nil
+func DockerAvailable() bool { ok, _ := DockerStatus(); return ok }
+
+// DockerStatus probes Docker and, on failure, returns WHY. Plain `docker info`
+// exits non-zero for two very different reasons — no CLI at all, or a CLI that
+// can't reach the daemon (socket permissions: the common case on DGX OS and any
+// fresh install before the 'docker' group takes effect) — and reporting both as
+// "Docker not found" sends people installing a Docker they already have.
+// On success the string is the daemon version.
+func DockerStatus() (bool, string) {
+	if _, err := exec.LookPath("docker"); err != nil {
+		return false, "docker CLI not in PATH"
+	}
+	out, err := exec.Command("docker", "info", "--format", "{{.ServerVersion}}").CombinedOutput()
+	msg := strings.TrimSpace(string(out))
+	if err == nil {
+		return true, msg
+	}
+	return false, dockerFailReason(msg)
+}
+
+// dockerFailReason turns `docker info` stderr into one actionable line.
+func dockerFailReason(out string) string {
+	low := strings.ToLower(out)
+	switch {
+	case strings.Contains(low, "permission denied"):
+		return "daemon socket denied — run: sudo usermod -aG docker $USER, then re-login (or newgrp docker)"
+	case strings.Contains(low, "cannot connect") || strings.Contains(low, "is the docker daemon running"):
+		return "daemon not running — run: sudo systemctl enable --now docker"
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			return line
+		}
+	}
+	return "docker info failed"
 }
 
 // ImageExists reports whether the given image tag is present locally.
@@ -106,15 +140,38 @@ func GPUs() []GPU {
 			return n << 20
 		}
 		util, _ := strconv.Atoi(strings.TrimSpace(f[4]))
-		gs = append(gs, GPU{
+		g := GPU{
 			Name:     strings.TrimSpace(f[0]),
 			MemUsed:  mb(f[1]),
 			MemTotal: mb(f[2]),
 			MemFree:  mb(f[3]),
 			UtilPct:  util,
-		})
+		}
+		// Unified-memory parts (DGX Spark GB10, Jetson) have no dedicated VRAM:
+		// they share the host's LPDDR pool and nvidia-smi prints "[N/A]" for the
+		// memory columns, which parses to 0 and makes the predictor think the GPU
+		// is unusable. Substitute the host pool and mark it so the predictor
+		// doesn't count that memory twice (once as VRAM, once as RAM).
+		if g.Unified = isUnifiedGPU(g.Name) || g.MemTotal == 0; g.Unified {
+			g.MemTotal, g.MemFree = TotalRAM(), FreeRAM()
+			g.MemUsed = g.MemTotal - g.MemFree
+		}
+		gs = append(gs, g)
 	}
 	return gs
+}
+
+// isUnifiedGPU matches the SoC parts whose "VRAM" is the host's RAM.
+// ponytail: name match, not a driver query — add a name here when a new
+// unified part ships (nvidia-smi -L shows it).
+func isUnifiedGPU(name string) bool {
+	up := strings.ToUpper(name)
+	for _, k := range []string{"GB10", "SPARK", "ORIN", "XAVIER", "THOR", "TEGRA"} {
+		if strings.Contains(up, k) {
+			return true
+		}
+	}
+	return false
 }
 
 // Stop stops a container; Remove force-removes it.

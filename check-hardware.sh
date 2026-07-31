@@ -34,7 +34,13 @@ EOF
 
 check_docker() {
   ensure_pkg docker docker.io "Docker Engine"
-  docker info >/dev/null 2>&1 || log_warn "Docker installed but not usable by this user (add yourself to the 'docker' group or use sudo)"
+  local err
+  err=$(docker info 2>&1 >/dev/null) && { log_info "Docker daemon reachable"; return 0; }
+  case "$err" in
+    *"permission denied"*) log_warn "Docker installed but this user can't reach the socket: sudo usermod -aG docker \"\$USER\" && newgrp docker" ;;
+    *"Cannot connect"*|*"daemon running"*) log_warn "Docker installed but not running: sudo systemctl enable --now docker" ;;
+    *) log_warn "Docker installed but 'docker info' failed: $(printf '%s' "$err" | head -n1)" ;;
+  esac
 }
 
 # check_toolkit: NVIDIA Container Toolkit — safe userland install.

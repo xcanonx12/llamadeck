@@ -467,7 +467,23 @@ containers carrying the `com.llamacpp.managed=true` label.
 | `GCC_VERSION` | `14` | Compiler pinned for the CUDA build. |
 | `MODELS_DIR` | `./.models` | Host directory for the shared model cache. |
 
-`NO_COLOR` disables all ANSI colour output (CLI and scripts).
+`NO_COLOR` disables all ANSI colour output (CLI and scripts). All three build
+variables are optional — `docker-build.sh` defaults them (`GCC_VERSION` follows
+`UBUNTU_VERSION`: `14` for 24.04, `12` for 22.04) and writes them back to `.env`.
+
+### NVIDIA DGX Spark (GB10) and other unified-memory parts
+
+Spark, Jetson and friends have no dedicated VRAM: the GPU and CPU share one
+LPDDR pool, and `nvidia-smi` reports the memory columns as `[N/A]`. llamadeck
+detects that, uses the host pool as the memory budget, and — because it is the
+*same* memory — requires GPU + host bytes to fit it **together** instead of
+budgeting two pools.
+
+`docker-build.sh` auto-selects `dgx.Dockerfile` on `aarch64` + a unified GPU:
+CUDA 13 base (needed for `sm_121`), native Grace CPU build instead of the x86
+`GGML_CPU_ALL_VARIANTS` set, and `GGML_CUDA_ENABLE_UNIFIED_MEMORY=1` at runtime
+(free here, since a spill stays in the same RAM). Force either file with
+`DOCKERFILE=Dockerfile ./docker-build.sh`.
 
 ## How the Docker layer works
 
@@ -534,6 +550,8 @@ every push.
 | Build takes forever | `docker-build.sh` detects your compute capability and builds only that arch. If you bypassed it, pass `CUDA_DOCKER_ARCH=<cc>` (e.g. `89`). |
 | `Port <N> is already in use` | Another process holds the port. The TUI auto-picks a free one; for `launch.sh` pass `--port`, or stop the old server via `manage.sh`. |
 | `nvidia-smi not found` | Install the NVIDIA driver (preflight prints the commands), then re-run. |
+| "Docker unusable" although Docker is installed (e.g. DGX OS) | The banner now prints why. Usually socket permissions: `sudo usermod -aG docker "$USER"` then `newgrp docker` (or re-login); or the daemon is stopped: `sudo systemctl enable --now docker`. |
+| GPU shows 0 B of memory | Unified-memory part (DGX Spark / Jetson) reporting `[N/A]` to `nvidia-smi` — handled since the unified-memory support; if it persists, check `nvidia-smi --query-gpu=name --format=csv,noheader` and add the name to `isUnifiedGPU` in `predictor/infra/docker.go` + `is_unified_gpu` in `lib/common.sh`. |
 | Server stuck "starting" for minutes | First launch downloads the model; large models can exceed the healthcheck `start_period`. Watch `manage.sh logs <name>`. |
 | Container keeps **restarting** (exit 139) despite VRAM to spare | A CUDA compute-buffer OOM at load (`cudaMalloc failed … failed to allocate compute buffers`). Usually a too-large `--ubatch-size` with a big-vocab model (the logits buffer scales with ubatch × vocab). The Fit graph now predicts this per-device — the overloaded GPU is flagged ⚠ before launch, near-edge fits warn **TIGHT — may crash at load**, and the largest safe `-ngl` is shown. Lower ubatch/ctx, or pin one GPU. `--restart unless-stopped` hides the crash — check `logs`. |
 | `warning: failed to mlock … Cannot allocate memory` | The container's `RLIMIT_MEMLOCK` is Docker's tiny default. The Go launcher now passes `--ulimit memlock=-1` automatically when mlock is on; for the bash scripts, turn mlock off or add the ulimit yourself. |
