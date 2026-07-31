@@ -42,11 +42,19 @@ RUN if [ "${CUDA_DOCKER_ARCH}" = "default" ]; then ARCH=121; else ARCH="${CUDA_D
       -DCMAKE_EXE_LINKER_FLAGS=-Wl,--allow-shlib-undefined . && \
     cmake --build build --config Release -j"$(nproc)"
 RUN mkdir -p /app/lib && find build -name "*.so*" -exec cp -P {} /app/lib \;
+# GGML_BACKEND_DL means the backends are dlopen'd from the binary's directory at
+# runtime — a missing .so here shows up as a model that won't load, an hour after
+# the build. The x86 image gets its CPU backend from GGML_CPU_ALL_VARIANTS; this
+# one from the plain single-variant build, so assert both landed.
+RUN ls /app/lib/libggml-cpu*.so >/dev/null || { echo "FATAL: no CPU backend built"; exit 1; } && \
+    ls /app/lib/libggml-cuda.so >/dev/null || { echo "FATAL: no CUDA backend built"; exit 1; }
 RUN mkdir -p /app/full && cp build/bin/* /app/full
 
 # --- runtime base ---
 FROM ${BASE_CUDA_RUN_CONTAINER} AS base
-RUN apt-get update && apt-get install -y libgomp1 curl ffmpeg \
+# ca-certificates is explicit, not left to curl's Recommends: without it every
+# -hf download dies with "SSL certificate problem" and it looks like a model bug.
+RUN apt-get update && apt-get install -y libgomp1 curl ca-certificates ffmpeg \
     && apt autoremove -y && apt clean -y \
     && rm -rf /tmp/* /var/tmp/* \
     && find /var/cache/apt/archives /var/lib/apt/lists -not -name lock -type f -delete \
