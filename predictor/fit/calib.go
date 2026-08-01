@@ -188,7 +188,12 @@ func ParseServerLog(log string) (*Measured, error) {
 		m.LayersTotal, _ = strconv.Atoi(ofl[2])
 	}
 	if !found {
-		return nil, fmt.Errorf("no buffer-size lines found in log (is this llama-server output?)")
+		// Current llama.cpp gates the load-time allocation lines behind the log
+		// verbosity, so a perfectly good server log has none of them at the
+		// default level — relaunching with -lv is the fix, not a different log.
+		return nil, fmt.Errorf("no buffer-size lines in log: relaunch the server with " +
+			`--extra "-lv 9"` + " (current llama.cpp hides them at the default verbosity), " +
+			"or check this is llama-server output")
 	}
 	m.GPUDevices = len(devices)
 	return m, nil

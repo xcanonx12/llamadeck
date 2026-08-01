@@ -269,6 +269,11 @@ llamadeck calibrate unsloth/Llama-3.2-1B-Instruct-GGUF:Q4_K_M --container <name>
 llamadeck verify unsloth/Llama-3.2-1B-Instruct-GGUF:Q4_K_M --container <name> --ctx 8192
 ```
 
+`calibrate`, `verify` and `audit` read the server's load-time allocation lines,
+which current llama.cpp hides at the default log verbosity. Launch the server
+you intend to measure with `--extra "-lv 9"`, or those commands have nothing to
+read.
+
 Source forms accepted everywhere: `owner/repo[:QUANT]`, a direct `.gguf` URL, or a
 local path. Hardware is auto-probed (`nvidia-smi` + `/proc/meminfo` / `sysctl`);
 override with `--vram-mb` / `--ram-mb`. Full reference:
