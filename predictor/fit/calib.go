@@ -83,8 +83,38 @@ func isGPUDevice(dev string) bool {
 	return true
 }
 
+// lastLoadPass trims the log to the final "loading model tensors" pass.
+//
+// Current llama.cpp probes the fit with a dry pass (load_mode = none) before the
+// real load (load_mode = mmap), and BOTH passes log buffer sizes. The probe's
+// model/KV lines read 0.00 MiB (harmless when summed) but its compute lines
+// carry the real values, so summing every match in the log double-counted the
+// compute buffers — measured on a DGX Spark launch: 92 MiB reported for a
+// 34+12 MiB reality, which would teach calibrate a ~2x ComputeScale.
+//
+// Splitting by pass rather than deduping by device+kind is deliberate: within
+// ONE pass a model may legitimately log two buffer lines for the same device
+// (SWA models keep a second KV cache), and those must still sum.
+// Logs from builds without the marker (older llama.cpp, the testdata fixtures)
+// are returned whole.
+func lastLoadPass(log string) string {
+	const marker = "loading model tensors"
+	i := strings.LastIndex(log, marker)
+	if i <= 0 {
+		return log
+	}
+	if j := strings.LastIndexByte(log[:i], '\n'); j >= 0 {
+		return log[j+1:]
+	}
+	return log[i:]
+}
+
 // ParseServerLog extracts the real buffer sizes from llama-server stderr.
 func ParseServerLog(log string) (*Measured, error) {
+	// Only the buffer sizes are pass-scoped: the fit-planner capacity lines
+	// (paramsFitRe) are emitted BEFORE the final load pass, so they must still be
+	// searched across the whole log.
+	bufLog := lastLoadPass(log)
 	m := &Measured{}
 	found := false
 	devices := map[string]bool{}
@@ -98,7 +128,7 @@ func ParseServerLog(log string) (*Measured, error) {
 		m.Devices = append(m.Devices, DeviceMeasured{Name: key})
 		return &m.Devices[len(m.Devices)-1]
 	}
-	for _, mt := range bufRe.FindAllStringSubmatch(log, -1) {
+	for _, mt := range bufRe.FindAllStringSubmatch(bufLog, -1) {
 		dev, kind, numStr, unit := mt[1], strings.ToLower(mt[2]), mt[3], mt[4]
 		n, err := strconv.ParseFloat(numStr, 64)
 		if err != nil {
